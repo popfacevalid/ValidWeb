@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HackyBoard</title>
+  <style>
+    body { margin:0; padding:0; background:#000; color:#ccc; font-family:'Courier New',monospace; min-height:100vh; }
+    .banner { font-family:monospace; white-space:pre; color:#fff; font-size:11px; position:fixed; top:10px; left:20px; text-shadow:0 0 10px #888; z-index:1000; }
+    #userDisplay { position:fixed; top:10px; right:20px; color:#fff; font-size:14px; display:none; }
+    .login-box { background:#111; padding:40px; border:1px solid #333; border-radius:6px; width:360px; text-align:center; margin:120px auto; box-shadow:0 0 10px rgba(255,255,255,0.1); }
+    h2 { color:#fff; margin-bottom:20px; }
+    form { display:flex; flex-direction:column; gap:15px; }
+    input,textarea { padding:12px; background:#000; color:#fff; border:1px solid #333; border-radius:4px; font-size:14px; }
+    button { padding:12px; background:#111; color:#fff; border:1px solid #555; cursor:pointer; font-weight:bold; }
+    button:hover { background:#fff; color:#000; }
+    nav { display:flex; gap:20px; padding:15px; border-bottom:1px solid #222; background:#111; position:sticky; top:0; z-index:999; }
+    nav a { color:#aaa; cursor:pointer; text-decoration:none; }
+    nav a:hover { color:#fff; }
+    #homePage { display:none; max-width:900px; margin:100px auto; padding:20px; }
+    .post { background:#111; border:1px solid #333; padding:20px; border-radius:6px; margin-bottom:20px; }
+    .post h3 { margin:0 0 10px; color:#fff; }
+    .vote-controls { margin-top:10px; font-size:13px; }
+    .vote-btn { cursor:pointer; margin-right:10px; }
+    .comment-section { margin-top:15px; }
+    .comment { font-size:12px; margin:5px 0; padding-left:10px; border-left:1px solid #444; }
+    #profilePage,#aboutPage,#settingsPage,#adminPage { display:none; max-width:800px; margin:40px auto; }
+    table { width:100%; border-collapse:collapse; margin-top:20px; }
+    th,td { border:1px solid #555; padding:8px; text-align:left; font-size:14px; }
+    th { background:#222; color:#fff; }
+    .backBtn { margin:15px 0; padding:8px 12px; border:1px solid #555; background:#111; color:#fff; cursor:pointer; }
+    .backBtn:hover { background:#fff; color:#000; }
+  </style>
+</head>
+<body>
+  <div class="banner">
+██    ██  █████  ██      ██ ██ ██████  
+██    ██ ██   ██ ██      ██ ██ ██   ██ 
+██    ██ ███████ ██      ██ ██ ██████  
+ ██  ██  ██   ██ ██      ██ ██ ██      
+  ████   ██   ██ ███████ ██ ██ ██      
+  </div>
+  <div id="userDisplay"></div>
+
+  <!-- Login -->
+  <div class="login-box" id="loginBox">
+    <h2 id="formTitle">Login</h2>
+    <form id="loginForm">
+      <input type="text" placeholder="Username" required>
+      <input type="password" placeholder="Password" required>
+      <button type="submit">Login</button>
+      <button type="button" id="anonBtn">Login Anonymously</button>
+    </form>
+    <form id="signupForm" style="display:none;">
+      <input type="text" placeholder="Username" required>
+      <input type="password" placeholder="Password" required>
+      <button type="submit">Sign Up</button>
+    </form>
+    <div class="links"><a id="toggleForm" style="cursor:pointer; color:#fff;">Sign Up</a></div>
+  </div>
+
+  <!-- Home -->
+  <div id="homePage">
+    <nav>
+      <a id="homeLink">Home</a>
+      <a id="submitLink">Submit</a>
+      <a id="profileLink">Profile</a>
+      <a id="aboutLink">About</a>
+      <a id="settingsLink">Settings</a>
+      <a id="adminLink" style="display:none;">Admin</a>
+      <a id="logoutLink" style="color:red;">Logout</a>
+    </nav>
+
+    <input type="text" id="searchBar" placeholder="Search posts..." style="width:100%; padding:10px; margin:20px 0; border:1px solid #333; background:#000; color:#fff;">
+
+    <form id="postForm" style="display:none;">
+      <input type="text" id="postTitle" placeholder="Title" required>
+      <textarea id="postContent" placeholder="Your content..." required></textarea>
+      <button type="submit">Publish</button>
+    </form>
+
+    <div id="posts"></div>
+  </div>
+
+  <!-- Profile -->
+  <div id="profilePage">
+    <button class="backBtn" onclick="goBack()">← Back</button>
+    <h2>Your Profile</h2>
+    <p><b>Username:</b> <span id="profileName"></span></p>
+    <h3>Your Posts:</h3>
+    <div id="userPosts"></div>
+  </div>
+
+  <!-- About -->
+  <div id="aboutPage">
+    <button class="backBtn" onclick="goBack()">← Back</button>
+    <h2>About</h2>
+    <p>HackyBoard is a retro-style forum with anonymous and registered users.</p>
+  </div>
+
+  <!-- Settings -->
+  <div id="settingsPage">
+    <button class="backBtn" onclick="goBack()">← Back</button>
+    <h2>Settings</h2>
+    <button id="clearPosts">Clear All Posts</button>
+    <!-- Reset Site only visible for admins -->
+    <button id="resetSite" style="display:none;">Reset Site</button>
+  </div>
+
+  <!-- Admin -->
+  <div id="adminPage">
+    <button class="backBtn" onclick="goBack()">← Back</button>
+    <h2>Admin Panel</h2>
+    <p>Only visible to <b>Valid</b></p>
+    <h3>Users</h3>
+    <table>
+      <thead><tr><th>Username</th><th>Password</th><th>Account Age (days)</th><th>Action</th></tr></thead>
+      <tbody id="userTable"></tbody>
+    </table>
+    <h3>Posts</h3>
+    <div id="adminPosts"></div>
+  </div>
+
+  <script>
+    const loginForm=document.getElementById('loginForm');
+    const signupForm=document.getElementById('signupForm');
+    const toggleFormLink=document.getElementById('toggleForm');
+    const loginBox=document.getElementById('loginBox');
+    const anonBtn=document.getElementById('anonBtn');
+    const homePage=document.getElementById('homePage');
+    const userDisplay=document.getElementById('userDisplay');
+    const postsContainer=document.getElementById('posts');
+    const postForm=document.getElementById('postForm');
+    const homeLink=document.getElementById('homeLink');
+    const submitLink=document.getElementById('submitLink');
+    const logoutLink=document.getElementById('logoutLink');
+    const searchBar=document.getElementById('searchBar');
+    const profilePage=document.getElementById('profilePage');
+    const profileName=document.getElementById('profileName');
+    const userPostsDiv=document.getElementById('userPosts');
+    const aboutPage=document.getElementById('aboutPage');
+    const settingsPage=document.getElementById('settingsPage');
+    const clearPostsBtn=document.getElementById('clearPosts');
+    const resetSiteBtn=document.getElementById('resetSite');
+    const adminLink=document.getElementById('adminLink');
+    const adminPage=document.getElementById('adminPage');
+    const userTable=document.getElementById('userTable');
+    const adminPostsDiv=document.getElementById('adminPosts');
+    let currentUser=null;
+
+    // Storage helpers
+    function savePosts(posts){ localStorage.setItem('posts',JSON.stringify(posts)); }
+    function loadPosts(){ return JSON.parse(localStorage.getItem('posts')||'[]'); }
+    function loadUsers(){ return JSON.parse(localStorage.getItem('users')||'[]'); }
+    function saveUsers(users){ localStorage.setItem('users',JSON.stringify(users)); }
+
+    function hidePages(){ homePage.style.display='none'; profilePage.style.display='none'; aboutPage.style.display='none'; settingsPage.style.display='none'; adminPage.style.display='none'; }
+
+    function goBack(){ hidePages(); homePage.style.display='block'; }
+
+    // Toggle login/signup
+    toggleFormLink.onclick=()=>{ 
+      if(loginForm.style.display!=='none'){loginForm.style.display='none'; signupForm.style.display='flex'; toggleFormLink.textContent='Login';}
+      else{loginForm.style.display='flex'; signupForm.style.display='none'; toggleFormLink.textContent='Sign Up';}
+    };
+
+    // Login user
+    function loginUser(name){
+      currentUser=name;
+      loginBox.style.display='none';
+      homePage.style.display='block';
+      userDisplay.textContent=name;
+      userDisplay.style.display='block';
+      renderPosts();
+      if(name==="Anonymous"){ submitLink.style.display='none'; } else { submitLink.style.display='inline'; }
+
+      // admin check
+      if(name==="Valid" || name==="1"){
+        adminLink.style.display='inline';
+        resetSiteBtn.style.display='inline'; // show reset only for admin
+      } else {
+        adminLink.style.display='none';
+        resetSiteBtn.style.display='none';
+      }
+    }
+
+    // Login
+    loginForm.onsubmit=e=>{
+      e.preventDefault();
+      const username=loginForm.querySelector('input[type="text"]').value.trim();
+      const password=loginForm.querySelector('input[type="password"]').value;
+      const users=loadUsers();
+      const user=users.find(u=>u.username===username);
+      if(!user){alert("No such user."); return;}
+      if(user.password!==password){alert("Wrong password."); return;}
+      loginUser(username);
+    };
+
+    // Signup
+    signupForm.onsubmit=e=>{
+      e.preventDefault();
+      const username=signupForm.querySelector('input[type="text"]').value.trim();
+      const password=signupForm.querySelector('input[type="password"]').value;
+      const users=loadUsers();
+      if(users.find(u=>u.username===username)){alert("Username already taken!"); return;}
+      users.push({username,password,createdAt:Date.now()});
+      saveUsers(users);
+      alert("Signup successful! Please login.");
+      signupForm.reset(); signupForm.style.display="none"; loginForm.style.display="flex"; toggleFormLink.textContent="Sign Up";
+    };
+
+    anonBtn.onclick=()=>loginUser("Anonymous");
+
+    // Logout
+    logoutLink.onclick=()=>{ currentUser=null; homePage.style.display='none'; userDisplay.style.display='none'; loginBox.style.display='block'; };
+
+    // Nav
+    homeLink.onclick=()=>{ hidePages(); homePage.style.display='block'; };
+    submitLink.onclick=()=>{ postForm.style.display= postForm.style.display==='none' ? 'block' : 'none'; };
+    profileLink.onclick=()=>{ hidePages(); profilePage.style.display='block'; profileName.textContent=currentUser; renderUserPosts(); };
+    aboutLink.onclick=()=>{ hidePages(); aboutPage.style.display='block'; };
+    settingsLink.onclick=()=>{ hidePages(); settingsPage.style.display='block'; };
+    adminLink.onclick=()=>{ hidePages(); adminPage.style.display='block'; renderAdmin(); };
+
+    // Posts
+    postForm.onsubmit=e=>{
+      e.preventDefault();
+      if(currentUser==="Anonymous"){alert("Anonymous users cannot post."); return;}
+      const title=document.getElementById('postTitle').value;
+      const content=document.getElementById('postContent').value;
+      let posts=loadPosts();
+      posts.unshift({id:Date.now(),title,content,author:currentUser,votes:0,comments:[]});
+      savePosts(posts);
+      postForm.reset(); postForm.style.display='none'; renderPosts();
+    };
+
+    function renderPosts(filter=""){
+      let posts=loadPosts();
+      postsContainer.innerHTML="";
+      posts.filter(p=>p.title.includes(filter)||p.content.includes(filter)).forEach(post=>{
+        let div=document.createElement('div');
+        div.className='post';
+        div.innerHTML=`<h3>${post.title}</h3><p>${post.content}</p><small>by ${post.author}</small>
+          <div class="vote-controls">
+            <span class="vote-btn" onclick="vote(${post.id},1)">⬆️</span>
+            <span class="vote-btn" onclick="vote(${post.id},-1)">⬇️</span>
+            <span>Votes: ${post.votes}</span>
+          </div>
+          <div class="comment-section">
+            <input type="text" placeholder="Add comment" onkeydown="if(event.key==='Enter'){addComment(${post.id},this.value);this.value='';}">
+            ${post.comments.map(c=>`<div class="comment">${c}</div>`).join('')}
+          </div>`;
+        postsContainer.appendChild(div);
+      });
+    }
+
+    function vote(id,val){ let posts=loadPosts(); let p=posts.find(x=>x.id===id); if(p){p.votes+=val; savePosts(posts); renderPosts(searchBar.value);} }
+    function addComment(id,txt){ if(!txt) return; let posts=loadPosts(); let p=posts.find(x=>x.id===id); if(p){p.comments.push(txt); savePosts(posts); renderPosts(searchBar.value);} }
+
+    searchBar.oninput=()=>renderPosts(searchBar.value);
+
+    function renderUserPosts(){ let posts=loadPosts(); userPostsDiv.innerHTML=""; posts.filter(p=>p.author===currentUser).forEach(p=>{ let d=document.createElement('div'); d.className='post'; d.innerHTML=`<h3>${p.title}</h3><p>${p.content}</p>`; userPostsDiv.appendChild(d); }); }
+
+    clearPostsBtn.onclick=()=>{ localStorage.removeItem('posts'); renderPosts(); };
+    resetSiteBtn.onclick=()=>{ if(currentUser==="Valid" || currentUser==="1"){ localStorage.clear(); location.reload(); } };
+
+    // Admin
+    function renderAdmin(){
+      let users=loadUsers(); userTable.innerHTML="";
+      users.forEach(u=>{
+        let age=Math.floor((Date.now()-u.createdAt)/86400000);
+        let row=document.createElement('tr');
+        row.innerHTML=`<td>${u.username}</td><td><input type="password" value="${u.password}" readonly></td><td>${age}</td>
+        <td><button onclick="deleteUser('${u.username}')">Delete</button></td>`;
+        userTable.appendChild(row);
+      });
+      let posts=loadPosts(); adminPostsDiv.innerHTML="";
+      posts.forEach(p=>{
+        let div=document.createElement('div'); div.className='post';
+        div.innerHTML=`<h3>${p.title}</h3><p>${p.content}</p><small>by ${p.author}</small>
+          <button onclick="deletePost(${p.id})">Delete Post</button>`;
+        adminPostsDiv.appendChild(div);
+      });
+    }
+
+    function deleteUser(name){ let users=loadUsers().filter(u=>u.username!==name); saveUsers(users); renderAdmin(); }
+    function deletePost(id){ let posts=loadPosts().filter(p=>p.id!==id); savePosts(posts); renderAdmin(); }
+  </script>
+</body>
+</html>
